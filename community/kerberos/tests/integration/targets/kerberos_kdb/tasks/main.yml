@@ -1,0 +1,47 @@
+- name: Install kerberos
+  apt:
+    pkg:
+      - krb5-kdc
+
+- ansible.builtin.set_fact:
+    kdb_path: /var/lib/krb5kdc/principal
+
+
+- name: Does kdb exist
+  ansible.builtin.stat:
+    path: "{{ kdb_path }}"
+  register: stat_result_before
+
+- ansible.builtin.assert:
+    that:
+      - not stat_result_before.stat.exists
+
+
+- name: Create kerberos kdb
+  community.kerberos.kerberos_kdb:
+    password: "foo"
+
+
+- name: Does kdb exist
+  ansible.builtin.stat:
+    path: "{{ kdb_path }}"
+  register: stat_result_after_creation
+
+- ansible.builtin.assert:
+    that:
+      - stat_result_after_creation.stat.exists
+
+
+- name: Destroy kerberos kdb
+  community.kerberos.kerberos_kdb:
+    state: absent
+
+
+- name: Does kdb exist
+  ansible.builtin.stat:
+    path: "{{ kdb_path }}"
+  register: stat_result_after_deletion
+
+- ansible.builtin.assert:
+    that:
+      - not stat_result_after_deletion.stat.exists
