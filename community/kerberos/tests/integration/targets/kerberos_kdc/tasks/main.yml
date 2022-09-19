@@ -64,7 +64,7 @@
   community.kerberos.kerberos_kdc:
     state: absent
 
-- name: Does kdb exist
+- name: Does config exist
   ansible.builtin.stat:
     path: "{{ kdc_conf_path }}"
   register: stat_result_after_deletion

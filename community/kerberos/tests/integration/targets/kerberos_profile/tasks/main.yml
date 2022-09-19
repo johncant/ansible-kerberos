@@ -1,0 +1,68 @@
+# Setup for test
+
+- name: Python deps
+  ansible.builtin.pip:
+    name:
+      - insights-core
+
+- ansible.builtin.set_fact:
+    krb5_conf_path: /etc/krb5.conf
+
+- name: Delete any existing config
+  ansible.builtin.file:
+    path: "{{ krb5_conf_path }}"
+    state: absent
+
+# Given no krb5 config, set up krb5
+
+- name: Configure krb5
+  community.kerberos.kerberos_profile:
+    libdefaults:
+      kdc: foo.bar
+      clockskew: 1
+
+- name: Check that krb5 has been configured (1)
+  ansible.builtin.assert:
+    that:
+      - item is search("clockskew = 1")
+  with_file: "{{ krb5_conf_path }}"
+
+- name: Check that kdb5 has been configured (2)
+  ansible.builtin.assert:
+    that:
+      - item is search("kdc = foo.bar")
+  with_file: "{{ krb5_conf_path }}"
+
+# Given existing krb5 config, change the config
+
+- name: Reconfigure krb5
+  community.kerberos.kerberos_profile:
+    libdefaults:
+      clockskew: 2
+
+- name: Check that krb5 has been reconfigured
+  ansible.builtin.assert:
+    that:
+      - item is search("clockskew = 2")
+  with_file: "{{ krb5_conf_path }}"
+
+- name: Check that existing config has been left
+  ansible.builtin.assert:
+    that:
+      - item is search("kdc = foo.bar")
+  with_file: "{{ krb5_conf_path }}"
+
+# Given existing krb5 config, delete it
+
+- name: Unconfigure krb5
+  community.kerberos.kerberos_profile:
+    state: absent
+
+- name: Does config exist
+  ansible.builtin.stat:
+    path: "{{ krb5_conf_path }}"
+  register: stat_result_after_deletion
+
+- ansible.builtin.assert:
+    that:
+      - not stat_result_after_deletion.stat.exists
