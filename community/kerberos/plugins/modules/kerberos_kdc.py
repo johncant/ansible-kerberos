@@ -7,23 +7,9 @@ Ansible module for managing KDC configuration
 import os
 
 from ansible.module_utils.basic import AnsibleModule
+from ansible_collections.community.kerberos.plugins.module_utils.kerberos_paths import get_kdc_config_path
 from ansible_collections.community.kerberos.plugins.module_utils.kerberos_profile import merge_krb5_profiles, generate_profile, parse_profile
-
-
-KDC_SECTIONS = [
-    "kdcdefaults",
-    "dbdefaults",
-    "logging",
-    "otp",
-]
-
-
-def get_kdc_config_path(module):
-    """
-    Returns the path for the KDC config
-    """
-    # TODO - determine location of kdc config
-    return "/etc/krb5kdc/kdc.conf"
+from ansible_collections.community.kerberos.plugins.module_utils.kerberos_parameters import KDC_GLOBAL_SECTIONS
 
 
 def destroy_kdc_config_if_exists(module):
@@ -67,6 +53,8 @@ def main():
     """
     Ansible Kerberos KDC module
     """
+    # TODO - add option to purge existing config
+
     module = AnsibleModule(
         argument_spec=dict(
             state=dict(
@@ -93,7 +81,7 @@ def main():
     state = module.params['state']
 
     kdc_options = {
-        k: module.params[k] for k in KDC_SECTIONS
+        k: module.params[k] for k in KDC_GLOBAL_SECTIONS
         if module.params[k]
     }
 

@@ -1,0 +1,96 @@
+# Setup for test
+
+- name: Python deps
+  ansible.builtin.pip:
+    name:
+      - insights-core
+
+- ansible.builtin.set_fact:
+    krb5_conf_path: /etc/krb5.conf
+    kdc_conf_path: /etc/krb5kdc/kdc.conf
+
+- name: Reconfigure kdc
+  community.kerberos.kerberos_kdc:
+    kdcdefaults:
+      kdc_ports: 91
+
+- name: Delete any existing realm config
+  ansible.builtin.file:
+    path: "/etc/krb5_realms.d"
+    state: absent
+
+- name: Delete any existing realm config
+  ansible.builtin.file:
+    path: "/etc/krb5kdc/krb5_realms.d"
+    state: absent
+
+# Given no krb5 config, set up krb5
+
+- name: Configure krb5 realm
+  community.kerberos.kerberos_realm:
+    name: FOO.BAR
+    krb5_config:
+      realms:
+        auth_to_local: "DEFAULT"
+    kdc_config:
+      realms:
+        max_renewable_life: "7d"
+
+- name: Check that krb5 has been configured (1)
+  ansible.builtin.assert:
+    that:
+      - item is search("max_renewable_life = 7d")
+  with_file: "/etc/krb5kdc/krb5_realms.d/FOO.BAR"
+
+- name: Check that kdc has been configured (2)
+  ansible.builtin.assert:
+    that:
+      - item is search("auth_to_local = DEFAULT")
+  with_file: "/etc/krb5_realms.d/FOO.BAR"
+
+# Given existing krb5 config, change the config
+
+- name: Reconfigure krb5 realm
+  community.kerberos.kerberos_realm:
+    name: FOO.BAR
+    krb5_config:
+      realms:
+        auth_to_local: "something"
+    kdc_config:
+      realms:
+        max_renewable_life: "8d"
+
+- name: Check that krb5 has been configured (1)
+  ansible.builtin.assert:
+    that:
+      - item is search("max_renewable_life = 8d")
+  with_file: "/etc/krb5kdc/krb5_realms.d/FOO.BAR"
+
+- name: Check that kdc has been configured (2)
+  ansible.builtin.assert:
+    that:
+      - item is search("auth_to_local = something")
+  with_file: "/etc/krb5_realms.d/FOO.BAR"
+
+# Given existing realm config, delete it
+
+- name: Remove krb5 role
+  community.kerberos.kerberos_realm:
+    name: FOO.BAR
+    state: absent
+
+- name: Does KRB5 config exist
+  ansible.builtin.stat:
+    path: "/etc/krb5_realms.d/FOO.BAR"
+  register: stat_result_krb5_after_deletion
+
+- name: Does KDC config exist
+  ansible.builtin.stat:
+    path: "/etc/kdc_realms.d/FOO.BAR"
+  register: stat_result_kdc_after_deletion
+
+- ansible.builtin.assert:
+    that:
+      - not stat_result_krb5_after_deletion.stat.exists
+      - not stat_result_kdc_after_deletion.stat.exists
+
