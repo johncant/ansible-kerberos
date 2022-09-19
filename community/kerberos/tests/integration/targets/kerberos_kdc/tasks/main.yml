@@ -1,0 +1,74 @@
+# Setup for test
+
+- name: Install kerberos
+  ansible.builtin.apt:
+    pkg:
+      - krb5-kdc
+  with_items: []
+
+- name: Python deps
+  ansible.builtin.pip:
+    name:
+      - insights-core
+
+- ansible.builtin.set_fact:
+    kdc_conf_path: /etc/krb5kdc/kdc.conf
+
+- name: Delete any existing config
+  ansible.builtin.file:
+    path: "{{ kdc_conf_path }}"
+    state: absent
+
+# Given no kdc config, set up kdc
+
+- name: Configure kdc
+  community.kerberos.kerberos_kdc:
+    kdcdefaults:
+      kdc_ports: 90
+      host_based_services: foo
+
+- name: Check that KDC has been configured (1)
+  ansible.builtin.assert:
+    that:
+      - item is search("kdc_ports = 90")
+  with_file: "{{ kdc_conf_path }}"
+
+- name: Check that KDC has been configured (2)
+  ansible.builtin.assert:
+    that:
+      - item is search("host_based_services = foo")
+  with_file: "{{ kdc_conf_path }}"
+
+# Given existing kdc config, change the config
+
+- name: Reconfigure kdc
+  community.kerberos.kerberos_kdc:
+    kdcdefaults:
+      kdc_ports: 91
+
+- name: Check that KDC has been reconfigured
+  ansible.builtin.assert:
+    that:
+      - item is search("kdc_ports = 91")
+  with_file: "{{ kdc_conf_path }}"
+
+- name: Check that existing config has been left
+  ansible.builtin.assert:
+    that:
+      - item is search("f")
+  with_file: "{{ kdc_conf_path }}"
+
+# Given existing kdc config, delete it
+
+- name: Unconfigure kdc
+  community.kerberos.kerberos_kdc:
+    state: absent
+
+- name: Does kdb exist
+  ansible.builtin.stat:
+    path: "{{ kdc_conf_path }}"
+  register: stat_result_after_deletion
+
+- ansible.builtin.assert:
+    that:
+      - not stat_result_after_deletion.stat.exists

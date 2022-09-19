@@ -1,0 +1,3 @@
+**/*.pyc
+
+/community/kerberos/tests/output/**
